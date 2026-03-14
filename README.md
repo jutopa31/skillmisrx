@@ -1,73 +1,36 @@
 # misrx-playwright skill
 
-Skill para Claude Code que automatiza la creación de recetas electrónicas en [misrx.com.ar](https://misrx.com.ar) usando Playwright (Node.js).
+Automatización del flujo completo de recetas electrónicas en [misrx.com.ar](https://misrx.com.ar) usando Playwright (Node.js).
 
-## ¿Qué hace esta skill?
+Disponible como **skill para Claude Code** o como **contexto reutilizable en cualquier plataforma de agentes IA**.
 
-Cuando la instalas, Claude Code puede ayudarte a:
+## ¿Qué hace?
 
 - Emitir recetas electrónicas en misrx.com.ar automáticamente
 - Automatizar prescripciones médicas paso a paso
 - Manejar el flujo completo: login → obra social → paciente → medicamento → confirmación
-- Resolver errores comunes de scripting en la plataforma
+- Resolver errores comunes de scripting sobre la plataforma Ionic/Angular de misrx
 
 ---
 
-## Instalación
+## Contenido del repositorio
 
-### Requisitos previos
-
-- [Claude Code CLI](https://docs.anthropic.com/es/docs/claude-code) instalado
-- El archivo `misrx-playwright.skill` descargado desde este repositorio
-
-### Paso 1 — Descargar el archivo `.skill`
-
-```bash
-# Clonar el repositorio
-git clone <url-de-este-repositorio>
-cd skillmisrx
+```
+skillmisrx/
+├── misrx-playwright.skill   # Skill empaquetada para Claude Code (ZIP)
+│   ├── SKILL.md             # Instrucciones y contexto del agente
+│   └── references/
+│       └── receta_completa.js  # Script Playwright de referencia end-to-end
+└── README.md
 ```
 
-O descargar solo el archivo:
-
-```bash
-curl -LO https://<url-de-este-repositorio>/raw/main/misrx-playwright.skill
-```
-
-### Paso 2 — Instalar la skill en Claude Code
-
-```bash
-claude skill install misrx-playwright.skill
-```
-
-Eso es todo. La skill quedará disponible en tu instalación de Claude Code.
+> El archivo `.skill` es simplemente un ZIP. Podés extraer `SKILL.md` y
+> `receta_completa.js` con `unzip misrx-playwright.skill` para usarlos en
+> cualquier plataforma.
 
 ---
 
-## Uso
-
-Una vez instalada, Claude Code activará la skill automáticamente cuando menciones:
-
-- `receta electrónica`
-- `misrx` / `misrx.com.ar`
-- `prescripción automatizada`
-- Cualquier tarea de scripting o automatización sobre la plataforma misrx
-
-### Ejemplo de prompt
-
-```
-Creá una receta electrónica en misrx para el paciente con DNI 37835412,
-obra social Paciente Particular, medicamento ANAFLEX 500mg,
-diagnóstico "Dolor leve".
-```
-
-Claude Code generará y ejecutará el script de Playwright correspondiente.
-
----
-
-## Setup de Playwright (necesario la primera vez)
-
-La skill usa Playwright para la automatización. Si no lo tenés instalado, ejecutá:
+## Setup de Playwright (requerido en todos los casos)
 
 ```bash
 mkdir -p /tmp/pw_misrx
@@ -77,23 +40,152 @@ npm install @playwright/test
 npx playwright install chromium
 ```
 
-> **Nota:** La plataforma misrx usa Ionic + Angular SPA, por lo que Playwright debe
-> ejecutarse con `headless: false` y `slowMo: 700`. La skill ya configura esto
-> automáticamente en los scripts que genera.
+> **Importante:** misrx usa Ionic + Angular SPA. Siempre usar `headless: false`
+> y `slowMo: 700`, de lo contrario los componentes no renderizan correctamente.
 
 ---
 
-## Estructura del repositorio
+## Instalación por plataforma
 
+### Claude Code
+
+```bash
+claude skill install misrx-playwright.skill
 ```
-skillmisrx/
-├── misrx-playwright.skill   # Archivo de la skill (instalar este)
-└── README.md                # Este archivo
+
+La skill se activa automáticamente cuando mencionás: `receta electrónica`,
+`misrx`, `prescripción automatizada` o cualquier tarea de scripting sobre misrx.
+
+---
+
+### OpenAI Assistants (API)
+
+Extraer el contexto del skill y cargarlo como instrucciones del asistente:
+
+```bash
+unzip misrx-playwright.skill misrx-playwright/SKILL.md -d /tmp/misrx
+```
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+with open("/tmp/misrx/misrx-playwright/SKILL.md") as f:
+    skill_context = f.read()
+
+assistant = client.beta.assistants.create(
+    name="misrx-playwright",
+    instructions=skill_context,
+    model="gpt-4o",
+    tools=[{"type": "code_interpreter"}],
+)
 ```
 
 ---
 
-## Desinstalar
+### LangChain
+
+Cargar el `SKILL.md` como contexto del sistema e invocar el agente:
+
+```python
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI  # o ChatAnthropic
+
+with open("misrx-playwright/SKILL.md") as f:
+    skill_context = f.read()
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", skill_context),
+    ("human", "{input}"),
+])
+
+llm = ChatOpenAI(model="gpt-4o")  # o Anthropic, etc.
+chain = prompt | llm
+
+response = chain.invoke({
+    "input": "Creá una receta para DNI 37835412, ANAFLEX 500mg, Paciente Particular"
+})
+```
+
+---
+
+### AutoGen
+
+```python
+import autogen
+
+with open("misrx-playwright/SKILL.md") as f:
+    skill_context = f.read()
+
+assistant = autogen.AssistantAgent(
+    name="misrx_agent",
+    system_message=skill_context,
+    llm_config={"model": "gpt-4o"},
+)
+
+user_proxy = autogen.UserProxyAgent(
+    name="user",
+    human_input_mode="NEVER",
+    code_execution_config={"work_dir": "/tmp/pw_misrx"},
+)
+
+user_proxy.initiate_chat(
+    assistant,
+    message="Creá una receta para DNI 37835412, ANAFLEX 500mg, Paciente Particular",
+)
+```
+
+AutoGen ejecutará el código Playwright generado directamente en `work_dir`.
+
+---
+
+### Claude API (Anthropic SDK)
+
+```python
+import anthropic
+
+with open("misrx-playwright/SKILL.md") as f:
+    skill_context = f.read()
+
+client = anthropic.Anthropic()
+
+message = client.messages.create(
+    model="claude-opus-4-6",
+    max_tokens=4096,
+    system=skill_context,
+    messages=[{
+        "role": "user",
+        "content": "Creá una receta para DNI 37835412, ANAFLEX 500mg, Paciente Particular"
+    }],
+)
+print(message.content[0].text)
+```
+
+---
+
+### Cualquier otro agente / LLM
+
+El patrón es siempre el mismo:
+
+1. Extraer `SKILL.md` del ZIP: `unzip misrx-playwright.skill`
+2. Cargar su contenido como **system prompt** o **contexto inicial** del agente
+3. Opcionalmente, incluir `receta_completa.js` como archivo de referencia adjunto
+4. El agente generará scripts Playwright basados en ese contexto
+
+---
+
+## Ejemplo de prompt (universal)
+
+```
+Creá una receta electrónica en misrx para el paciente con DNI 37835412,
+obra social Paciente Particular, medicamento ANAFLEX 500mg,
+diagnóstico "Dolor leve".
+```
+
+---
+
+## Desinstalar (Claude Code)
 
 ```bash
 claude skill remove misrx-playwright
