@@ -1,5 +1,11 @@
 # misrx-playwright skill
 
+> **⚠ Advertencia de seguridad:** El script de referencia (`receta_completa.js`)
+> contiene credenciales hardcodeadas (`DNI_MEDICO`, `PASSWORD`). **Nunca ejecutes
+> el archivo tal cual ni lo expongas públicamente.** Antes de usar el script,
+> reemplazá esos valores por variables de entorno (ver sección
+> [Credenciales seguras](#credenciales-seguras)).
+
 Automatización del flujo completo de recetas electrónicas en [misrx.com.ar](https://misrx.com.ar) usando Playwright (Node.js).
 
 Disponible como **skill para Claude Code** o como **contexto reutilizable en cualquier plataforma de agentes IA**.
@@ -182,6 +188,50 @@ Creá una receta electrónica en misrx para el paciente con DNI 37835412,
 obra social Paciente Particular, medicamento ANAFLEX 500mg,
 diagnóstico "Dolor leve".
 ```
+
+---
+
+## Credenciales seguras
+
+El script de referencia tiene las siguientes constantes que **no deben quedar
+en el código**:
+
+```js
+// ❌ NO hacer esto
+const DNI_MEDICO = '12345678';
+const PASSWORD   = 'miPassword123';
+```
+
+Reemplazalas por variables de entorno antes de ejecutar:
+
+```js
+// ✅ Correcto
+const DNI_MEDICO = process.env.MISRX_DNI;
+const PASSWORD   = process.env.MISRX_PASSWORD;
+```
+
+Y ejecutar el script así:
+
+```bash
+MISRX_DNI=12345678 MISRX_PASSWORD=miPassword123 node receta_completa.js
+```
+
+O usando un archivo `.env` con [dotenv](https://www.npmjs.com/package/dotenv):
+
+```bash
+# .env  (agregar al .gitignore)
+MISRX_DNI=12345678
+MISRX_PASSWORD=miPassword123
+```
+
+```js
+require('dotenv').config();
+const DNI_MEDICO = process.env.MISRX_DNI;
+const PASSWORD   = process.env.MISRX_PASSWORD;
+```
+
+> Si ya commiteaste credenciales en git, considerá rotarlas (cambiar la
+> contraseña en misrx) y revisar el historial con `git log -S 'PASSWORD'`.
 
 ---
 
