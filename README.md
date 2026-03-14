@@ -35,16 +35,18 @@ skillmisrx/
 
 ---
 
-## Setup de Playwright (requerido)
+## Setup de Playwright (automático)
 
 ```bash
 mkdir -p /tmp/pw_misrx
 cd /tmp/pw_misrx
-npm init -y
-npm install @playwright/test
-npx playwright install chromium
 cp /ruta/al/receta_completa.js .
+
+# El script instala dependencias solo si faltan
+node receta_completa.js
 ```
+
+> El script realiza auto-setup (`npm init`, `npm install @playwright/test`, `npx playwright install chromium`) cuando detecta que faltan dependencias.
 
 > **Importante:** misrx usa Ionic + Angular SPA. Siempre usar `headless: false`
 > y `slowMo: 700`, de lo contrario los componentes no renderizan correctamente.
